@@ -1,0 +1,63 @@
+{
+    "openapi": "3.0.0",
+    "info": {
+        "title": "Baseball Backend API",
+        "version": "1.0.0"
+    },
+    "paths": {
+        "/query": {
+            "get": {
+                "summary": "Get Baseball Player Information",
+                "parameters": [
+                    {
+                        "name": "player_full_name",
+                        "in": "query",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "A streaming response of player information, concluding with a JSON object.",
+                        "content": {
+                            "text/event-stream": {
+                                "schema": {
+                                    "type": "string"
+                                }
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error"
+                    }
+                }
+            }
+        }
+    },
+    "components": {
+        "schemas": {
+            "BaseballPlayerInfo": {
+                "type": "object",
+                "properties": {
+                    "history": {
+                        "type": "string"
+                    },
+                    "simple_information": {
+                        "type": "object"
+                    },
+                    "statistics": {
+                        "type": "object"
+                    },
+                    "games": {
+                        "type": "array",
+                        "items": {
+                            "type": "object"
+                        }
+                    }
+                }
+            }
+        }
+    }
+}

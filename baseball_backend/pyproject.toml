@@ -7,7 +7,12 @@ authors = [
     { name = "Leonardo Piñeyro", email = "leopiney@gmail.com" }
 ]
 requires-python = ">=3.12"
-dependencies = []
+dependencies = [
+    "fastapi>=0.117.1",
+    "loguru>=0.7.3",
+    "openai-agents>=0.3.2",
+    "pydantic>=2.11.9",
+]
 
 [build-system]
 requires = ["uv_build>=0.8.22,<0.9.0"]
