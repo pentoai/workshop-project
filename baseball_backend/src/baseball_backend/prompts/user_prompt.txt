@@ -1,0 +1,9 @@
+Please gather comprehensive information about the baseball player: {player_name}
+
+Use all available tools to collect:
+- Player's career history and background
+- Current team and position
+- Key statistics and achievements
+- Recent games and performance
+
+Compile this information into a complete BaseballPlayerInfo response.

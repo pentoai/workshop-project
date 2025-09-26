@@ -1,0 +1,52 @@
+---
+globs: *.tsx,*.ts,*.css,tailwind.config.*,components.json,package.json
+alwaysApply: false
+---
+
+# Next.js Development Rules
+
+## Framework & Architecture
+
+- **Next.js App Router**: Use App Router (src/app) for all new projects
+- **TypeScript**: Mandatory for all files - use `.tsx` for components, `.ts` for utilities
+- **File Structure**: Organize with `src/app/` for pages, `src/components/` for reusable components, `src/lib/` for utilities
+
+## IMPORTANT: terminal usage
+
+- **Running custom scripts**: AVOID DON'T run custom scripts like `npm run dev`
+- **Starting the server**: Never start the server manually, assume that it'll always be started at localhost:3000
+
+## Styling & UI
+
+- **Tailwind CSS**: Use Tailwind classes for all styling - avoid custom CSS unless absolutely necessary
+- **shadcn/ui**: Use shadcn/ui components from `src/components/ui/` for consistent design
+- **Component Structure**: Import shadcn components like `import { Button } from "@/components/ui/button"`
+- **Responsive Design**: Always implement mobile-first responsive design with Tailwind breakpoints
+
+## Server Actions & Data Fetching
+
+- **Server Actions**: Use server actions in `src/app/actions/` for form submissions and mutations
+- **"use server"**: Always add `"use server"` directive at top of server action files
+- **Error Handling**: Wrap server actions in try-catch blocks and return structured responses
+- **Type Safety**: Define proper TypeScript interfaces for server action parameters and return types
+
+## Component Best Practices
+
+- **Client Components**: Use `"use client"` only when necessary (interactivity, hooks, browser APIs)
+- **Server Components**: Default to server components for better performance
+- **Props Interface**: Define TypeScript interfaces for all component props
+- **Async Components**: Server components can be async - use for data fetching
+
+## Code Quality
+
+- **Imports**: Use absolute imports with `@/` alias (configured in tsconfig.json)
+- **Naming**: Use PascalCase for components, camelCase for functions/variables
+- **File Naming**: Use kebab-case for files (e.g., `player-results.tsx`)
+- **Export**: Use default exports for page components, named exports for utilities
+
+## Performance
+
+- **Image Optimization**: Use Next.js `Image` component for all images
+- **Loading States**: Implement loading.tsx files for route segments
+- **Error Boundaries**: Use error.tsx files for error handling
+- **Metadata**: Define proper metadata in layout.tsx and page.tsx files
