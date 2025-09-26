@@ -1,9 +1,9 @@
-Please gather comprehensive information about the baseball player: {player_name}
+Gather comprehensive information about the baseball player: {player_name}
 
-Use all available tools to collect:
-- Player's career history and background
-- Current team and position
-- Key statistics and achievements
-- Recent games and performance
+Instructions:
+1. Use web search to find detailed information about this player
+2. Look for career statistics, team history, biographical data, and recent performance
+3. Compile all available information into a structured response
+4. Return ONLY a valid JSON response in BaseballPlayerInfo format
 
-Compile this information into a complete BaseballPlayerInfo response.
+Player to research: {player_name}

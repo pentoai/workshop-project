@@ -8,13 +8,17 @@ from loguru import logger
 
 from baseball_backend.api.endpoints.query import router as query_router
 
-load_dotenv()
+# Load environment variables from .env file
+# Required variables:
+# - SUPABASE_ACCESS_TOKEN: Supabase access token for database access
+# - SUPABASE_PROJECT_REF: Supabase project reference ID
+_ = load_dotenv()
 
 # Remove default handler
-logger.remove()
+_ = logger.remove()
 
 # Add a new handler for structured logging
-logger.add(
+_ = logger.add(
     sys.stdout,
     serialize=True,
     enqueue=True,

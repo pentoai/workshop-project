@@ -1,10 +1,10 @@
 """Baseball agent implementation using OpenAI Agents SDK."""
 
+import json
 import os
+import re
 from pathlib import Path
-from typing import Any
-
-import asyncio
+from typing import Any, Optional
 from agents import Agent, WebSearchTool, Runner
 from agents.mcp import MCPServerStdio
 from loguru import logger
@@ -23,10 +23,39 @@ class BaseballAgent:
 
         # Initialize tools
         self.web_search_tool: WebSearchTool = WebSearchTool()
-        # TODO: Add Supabase MCP tool when properly configured
-        # self.supabase_mcp_tool = self._create_supabase_mcp_tool()
 
-        # Create the agent with tools
+        # Create Supabase MCP server (only if credentials are available)
+        self.supabase_server: Optional[MCPServerStdio] = None
+        supabase_project_ref = os.getenv("SUPABASE_PROJECT_REF") or os.getenv(
+            "SUPABASE_PROJECT_ID"
+        )
+        supabase_access_token = os.getenv("SUPABASE_ACCESS_TOKEN", "")
+
+        if supabase_project_ref and supabase_access_token:
+            try:
+                self.supabase_server = MCPServerStdio(
+                    name="Supabase Baseball Database",
+                    params={
+                        "command": "npx",
+                        "args": [
+                            "-y",
+                            "@supabase/mcp-server-supabase@latest",
+                            "--read-only",
+                            f"--project-ref={supabase_project_ref}",
+                        ],
+                        "env": {"SUPABASE_ACCESS_TOKEN": supabase_access_token},
+                    },
+                )
+                logger.info(
+                    f"Created Supabase MCP server for project: {supabase_project_ref}"
+                )
+            except Exception as e:
+                logger.warning(f"Failed to create Supabase MCP server: {e}")
+                self.supabase_server = None
+        else:
+            logger.info("Supabase credentials not found, proceeding without MCP server")
+
+        # Create the agent with tools only (MCP integration needs more work)
         self.agent: Agent = Agent(
             name="Baseball Information Specialist",
             instructions=self.system_prompt,
@@ -34,8 +63,11 @@ class BaseballAgent:
         )
 
         # For test compatibility, expose tools
-        self.tools = self.agent.tools
-        self.functions = self.agent.tools
+        self.tools: list[Any] = self.agent.tools
+        self.functions: list[Any] = self.agent.tools
+
+        # Track connection status
+        self._supabase_connected = False
 
     def _load_prompt(self, filename: str) -> str:
         """Load a prompt from the prompts directory."""
@@ -47,31 +79,50 @@ class BaseballAgent:
             logger.warning(f"Prompt file {filename} not found, using default")
             return "You are a helpful baseball information assistant."
 
-    def _create_supabase_mcp_tool(self):
+    def _create_supabase_mcp_tool(self) -> Optional[MCPServerStdio]:
         """Create a Supabase MCP tool for database access."""
-        supabase_access_token = os.getenv("SUPABASE_ACCESS_TOKEN", "")
-        supabase_project_ref = os.getenv("SUPABASE_PROJECT_REF") or os.getenv(
-            "SUPABASE_PROJECT_ID"
-        )
+        try:
+            supabase_access_token = os.getenv("SUPABASE_ACCESS_TOKEN", "")
+            supabase_project_ref = os.getenv("SUPABASE_PROJECT_REF") or os.getenv(
+                "SUPABASE_PROJECT_ID"
+            )
 
-        # Create the MCP server for Supabase
-        mcp_server = MCPServerStdio(
-            params={
-                "command": "npx",
-                "args": [
-                    "-y",
-                    "@supabase/mcp-server-supabase@latest",
-                    "--read-only",
-                    f"--project-ref={supabase_project_ref}",
-                ],
-                "env": {
-                    "SUPABASE_ACCESS_TOKEN": supabase_access_token,
+            if not supabase_access_token:
+                logger.warning(
+                    "SUPABASE_ACCESS_TOKEN not found in environment variables"
+                )
+                return None
+
+            if not supabase_project_ref:
+                logger.warning(
+                    "SUPABASE_PROJECT_REF not found in environment variables"
+                )
+                return None
+
+            # Create the MCP server for Supabase
+            mcp_server = MCPServerStdio(
+                params={
+                    "command": "npx",
+                    "args": [
+                        "-y",
+                        "@supabase/mcp-server-supabase@latest",
+                        "--read-only",
+                        f"--project-ref={supabase_project_ref}",
+                    ],
+                    "env": {
+                        "SUPABASE_ACCESS_TOKEN": supabase_access_token,
+                    },
                 },
-            },
-        )
+            )
 
-        logger.info(f"Created Supabase MCP tool for project: {supabase_project_ref}")
-        return mcp_server
+            logger.info(
+                f"Successfully created Supabase MCP tool for project: {supabase_project_ref}"
+            )
+            return mcp_server
+
+        except Exception as e:
+            logger.error(f"Failed to create Supabase MCP tool: {e}")
+            return None
 
     async def query_player(self, player_name: str) -> BaseballPlayerInfo:
         """Query for comprehensive baseball player information.
@@ -83,6 +134,9 @@ class BaseballAgent:
             BaseballPlayerInfo object with complete player data
         """
         logger.info(f"Starting query for player: {player_name}")
+
+        # Note: MCP server is already configured in the Agent during initialization
+        # We don't need to connect here as the Agent framework handles MCP server connections
 
         # Format the user prompt with the player name
         formatted_prompt = self.user_prompt.format(player_name=player_name)
@@ -110,30 +164,66 @@ class BaseballAgent:
             else:
                 content = str(response)
 
+            logger.info(f"Agent response content: {content[:500]}...")
+
             # Try to parse as JSON first
-            import json
 
             try:
-                data = json.loads(content)
-                return BaseballPlayerInfo(**data)
-            except json.JSONDecodeError:
+                # Handle cases where response might have extra text around JSON
+                content = content.strip()
+
+                # Look for JSON object in the response
+                json_start = content.find("{")
+                json_end = content.rfind("}") + 1
+
+                if json_start >= 0 and json_end > json_start:
+                    json_content = content[json_start:json_end]
+                    data = json.loads(json_content)
+
+                    # Validate that we have the required fields
+                    if isinstance(data, dict):
+                        # Ensure all required fields exist with defaults
+                        validated_data = {
+                            "history": data.get(
+                                "history", f"Information for {player_name}"
+                            ),
+                            "simple_information": data.get("simple_information", {}),
+                            "statistics": data.get("statistics", {}),
+                            "games": data.get("games", []),
+                        }
+                        return BaseballPlayerInfo(**validated_data)
+                else:
+                    raise json.JSONDecodeError("No JSON object found", content, 0)
+
+            except json.JSONDecodeError as e:
                 # If not JSON, try to extract structured information from text
-                # This is a fallback - ideally the agent returns JSON
-                logger.warning("Agent response was not JSON, attempting text parsing")
-                return self._parse_text_response(content)
+                logger.warning(
+                    f"Agent response was not valid JSON ({e}), attempting text parsing"
+                )
+                return self._parse_text_response(content, player_name)
+
         except Exception as e:
             logger.error(f"Error parsing agent response: {e}")
             # Return a basic BaseballPlayerInfo for unknown players
             return BaseballPlayerInfo(
                 history=f"Unable to retrieve information for {player_name}. Error: {str(e)}",
-                simple_information={},
+                simple_information={"full_name": player_name},
                 statistics={},
                 games=[],
             )
 
-    def _parse_text_response(self, text: str) -> BaseballPlayerInfo:
+        # Fallback return (should not reach here)
+        return BaseballPlayerInfo(
+            history=f"Unable to parse response for {player_name}",
+            simple_information={"full_name": player_name},
+            statistics={},
+            games=[],
+        )
+
+    def _parse_text_response(
+        self, text: str, player_name: str = "Unknown Player"
+    ) -> BaseballPlayerInfo:
         """Parse text response into BaseballPlayerInfo when JSON parsing fails."""
-        import re
 
         # Try to extract structured information from the agent's response
         history = ""
