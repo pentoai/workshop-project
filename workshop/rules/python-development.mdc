@@ -1,0 +1,46 @@
+---
+description: Use when doing anything related to python development or editing python files
+alwaysApply: false
+---
+
+# Python Development Rules
+
+## Package Management
+
+- **UV Required**: Always use UV package manager for Python projects
+- **Dependencies**: Install with `uv add <package_name>`
+- **Scripts**: Run with `uv run <script_name.py>`
+- **Virtual Environments**: Managed automatically by UV
+
+## IMPORTANT: terminal usage
+
+- **Running custom scripts**: AVOID DON'T run custom scripts like `uv run python -c "print('Hello, World!')"`
+- **Starting the server**: Never start the server manually, assume that it'll always be started at localhost:8000
+
+## Python Version & Typing
+
+- **Python 3.12**: Use Python 3.12 for all new projects
+- **Modern Typing**: Use `list[T]`, `dict[K, V]`, `T | None` instead of `List[T]`, `Dict[K, V]`, `Optional[T]`
+- **Type Annotations**: Mandatory for all functions, methods, and classes
+- **Return Types**: Always specify return type annotations
+- **Docstrings**: PEP 257 compliant docstrings for all public functions and classes
+- **Logging**: Use loguru for logging
+- **Imports**: Use absolute imports like `from backend.models import PlayerQuery` instead of relative imports like `from .models import PlayerQuery`
+
+## Testing
+
+- **Framework**: pytest only (no unittest)
+- **Location**: All tests in `./tests/` directory
+- **Structure**: Create `__init__.py` files in test directories
+- **Type Annotations**: Required in all test files
+
+## Data Handling
+
+- **Pandas**: Use for loading and manipulating SQLite database data
+- **Database**: SQLite for data storage
+
+## Code Quality
+
+- **Linter**: Ruff for code style consistency
+- **Comments**: Preserve existing comments in files
+- **Documentation**: Update docstrings when modifying code
